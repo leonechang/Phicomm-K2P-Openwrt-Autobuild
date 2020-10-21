@@ -49,8 +49,15 @@ jobs:
 
       - name: Clone source code
         env:
-          REPO_URL: https://github.com/coolsnowwolf/lede
-          REPO_BRANCH: master
+          
+          # 5.x version
+          # REPO_URL: https://github.com/coolsnowwolf/lede
+          # REPO_BRANCH: master
+          
+          # 4.x version
+          REPO_URL: https://github.com/coolsnowwolf/openwrt
+          REPO_BRANCH: lede-17.01
+        
         run: git clone --depth 1 $REPO_URL -b $REPO_BRANCH openwrt
 
       - name: add custom source
