@@ -34,6 +34,7 @@ jobs:
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
+          echo "Date_and_RunNumber=$(date -u +'%Y-%m-%d')-#$GITHUB_RUN_NUMBER" >> $GITHUB_ENV
           echo "Deleting files, please wait ..."
           sudo rm -rf /usr/share/dotnet /etc/apt/sources.list.d/*
           #sudo swapoff /swapfile
@@ -49,15 +50,8 @@ jobs:
 
       - name: Clone source code
         env:
-          
-          # 5.x version
           REPO_URL: https://github.com/coolsnowwolf/lede
           REPO_BRANCH: master
-          
-          # 4.x version
-         # REPO_URL: https://github.com/coolsnowwolf/openwrt
-         # REPO_BRANCH: lede-17.01
-        
         run: git clone --depth 1 $REPO_URL -b $REPO_BRANCH openwrt
 
       - name: add custom source
@@ -77,6 +71,9 @@ jobs:
           [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
           chmod +x $DIY_SH
           cd openwrt
+          echo 'CONFIG_KERNEL_BUILD_USER="tjuyy"' >> ./.config
+          echo "CONFIG_GRUB_TITLE=\"OpenWrt AutoBuild by tjuyy-$Date_and_RunNumber\"" >> ./.config
+          echo "OpenWrt AutoBuild by tjuyy - $Date_and_RunNumber" >> package/base-files/files/etc/banner
           ../$DIY_SH
           make defconfig
 
@@ -85,15 +82,15 @@ jobs:
 
       - name: Download package
         run: |
-          cd openwrt && make download -j8
+          cd openwrt && make download -j$(($(nproc)+1))
           find dl -size -1024c -exec ls -l {} \;
           find dl -size -1024c -exec rm -f {} \;
 
       - name: Multi-thread compile
         run: |
           cd openwrt
-          echo -e "$(nproc) thread compile"
-          make -j$(nproc)
+          echo -e "$(($(nproc)+1)) thread compile"
+          make -j$(($(nproc)+1))
 
       - name: Single-thread compile
         if: failure()
@@ -105,7 +102,7 @@ jobs:
         uses: actions/upload-artifact@main
         if: always()
         with:
-          name: OpenWrt_K2P_bin
+          name: OpenWrt_K2P_bin-${{ env.Date_and_RunNumber }}
           path: openwrt/bin
 
       - name: Remove packages
@@ -113,14 +110,15 @@ jobs:
         run: |
           cd openwrt/bin/targets/*/*
           rm -rf packages
-          echo "::set-env name=FIRMWARE::$(pwd)"
-
+          echo "Firmware_path=$(pwd)" >> $GITHUB_ENV
+          
+          
       - name: Upload firmware to Artifact
         uses: actions/upload-artifact@main
         if: always()
         with:
-          name: OpenWrt-K2P-Firmware
-          path: ${{ env.FIRMWARE }}
+          name: OpenWrt-K2P-Firmware-${{ env.Date_and_RunNumber }}
+          path: ${{ env.Firmware_path }}
 
       - name: Publish release
         uses: softprops/action-gh-release@v1
